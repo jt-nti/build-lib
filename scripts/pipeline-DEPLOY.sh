@@ -185,6 +185,15 @@ function deploy_composer_rest_server {
     popd
 }
 
+function deploy_composer_playground {
+    echo deploying playground
+
+    PLAYGROUND_APP_NAME=$(get_deploy_name "${IDS_JOB_ID}" "${BLOCKCHAIN_SERVICE_INSTANCE}" "playground")
+    
+    cf push ${PLAYGROUND_APP_NAME} --docker-image ibmblockchain/composer-playground:${COMPOSER_VERSION} -i 1 -m 256M --no-start --random-route --no-manifest
+    cf set-env ${PLAYGROUND_APP_NAME} NODE_CONFIG "${NODE_CONFIG}"
+}
+
 function deploy_apps {
     for APP in ${APPS}
     do
@@ -291,6 +300,13 @@ function gather_docker_app_url {
     popd
 }
 
+function gather_playground_url {
+    PLAYGROUND_APP_NAME=$(get_deploy_name "${IDS_JOB_ID}" "${BLOCKCHAIN_SERVICE_INSTANCE}" "playground")
+
+    PLAYGROUND_ROUTE=$(cf app ${PLAYGROUND_APP_NAME} | grep routes: | awk '{print $2}')
+    export PLAYGROUND_URL="https://${PLAYGROUND_ROUTE}"
+}
+
 function start_rest_servers {
     for CONTRACT in ${CONTRACTS}
     do
@@ -316,6 +332,12 @@ function start_composer_rest_server {
     CF_APP_NAME=$(get_deploy_name "${IDS_JOB_ID}" "${BLOCKCHAIN_SERVICE_INSTANCE}" "${BUSINESS_NETWORK_NAME}")
     cf start ${CF_APP_NAME}
     popd
+}
+
+function start_composer_playground {
+    PLAYGROUND_APP_NAME=$(get_deploy_name "${IDS_JOB_ID}" "${BLOCKCHAIN_SERVICE_INSTANCE}" "playground")
+
+    cf start ${PLAYGROUND_APP_NAME}
 }
 
 function start_apps {
@@ -344,6 +366,7 @@ function start_cf_app {
     echo starting cloud foundry app ${APP}
     pushd apps/${APP}
     cf set-env ${APP} REST_SERVER_URLS "${REST_SERVER_URLS}"
+    cf set-env ${APP} PLAYGROUND_URL "${PLAYGROUND_URL}"
     cf start ${APP}
     popd
 }
@@ -369,6 +392,8 @@ provision_blockchain
 if [[ "${HAS_COMPOSER_CONTRACTS}" = "true" ]]
 then
     create_blockchain_network_card
+    deploy_composer_playground &
+    DEPLOY_COMPOSER_PLAYGROUND=$!
 fi
 
 deploy_contracts &
@@ -377,16 +402,33 @@ deploy_rest_servers &
 DEPLOY_REST_SERVERS_PID=$!
 deploy_apps &
 DEPLOY_APPS_PID=$!
+if [[ "${HAS_COMPOSER_CONTRACTS}" = "true" ]]
+then
+    wait ${DEPLOY_COMPOSER_PLAYGROUND}
+fi
 wait ${DEPLOY_CONTRACTS_PID}
 wait ${DEPLOY_REST_SERVERS_PID}
 wait ${DEPLOY_APPS_PID}
 
+if [[ "${HAS_COMPOSER_CONTRACTS}" = "true" ]]
+then
+    gather_playground_url
+fi
 gather_rest_server_urls
 gather_app_urls
 
+if [[ "${HAS_COMPOSER_CONTRACTS}" = "true" ]]
+then
+    start_composer_playground &
+    START_COMPOSER_PLAYGROUND=$!
+fi
 start_rest_servers &
 START_REST_SERVERS_PID=$!
 start_apps &
 START_APPS_PID=$!
+if [[ "${HAS_COMPOSER_CONTRACTS}" = "true" ]]
+then
+    wait ${START_COMPOSER_PLAYGROUND}
+fi
 wait ${START_REST_SERVERS_PID}
 wait ${START_APPS_PID}
