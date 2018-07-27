@@ -24,6 +24,10 @@ elif [ "${platform}" = "composer" ]; then
     executable_script="${SCRIPT_DIR}composer/${stage}.sh"
     echo "Composer selected"
     echo ${executable_script}
+elif [ "${platform}" = "sample" ]; then
+    executable_script="${SCRIPT_DIR}sample/${stage}.sh"
+    echo "Sample selected"
+    echo ${executable_script}
 else 
     echo "Invalid platform: ${platform} selected"
     exit 1

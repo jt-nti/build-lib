@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 ROOTDIR=${ROOTDIR:=$PWD}
 
+export COMPOSER_VERSION=${COMPOSER_VERSION:="0.19.5"}
+
 export GO_VERSION=${GO_VERSION:="1.9.2"}
 
 # set location for go executables

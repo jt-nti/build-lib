@@ -26,6 +26,10 @@ build_lib_scripts="common/blockchain.sh
   go-chaincode/download-fabric.sh
   go-chaincode/install-go.sh
   go-chaincode/test.sh
+  sample/env.sh
+  sample/build.sh
+  sample/deploy.sh
+  sample/test.sh
   router.sh"
 
 mkdir -p ${SCRIPT_DIR:=./scripts/}
